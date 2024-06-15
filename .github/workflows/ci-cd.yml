@@ -25,12 +25,13 @@ jobs:
       run: |
         cd src
         python -m venv .venv
-        .venv/bin/activate
+        source .venv/bin/activate
         pip install -r requirements.txt
 
     - name: Train model
       run: |
         cd src
+        source .venv/bin/activate
         .venv/bin/python train_model.py
 
     - name: Build Docker image
