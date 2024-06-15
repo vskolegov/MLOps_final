@@ -1,7 +1,4 @@
 fastapi
 uvicorn
-pydantic
-scikit-learn
-numpy
 pandas
-dvc
+scikit-learn
