@@ -1,4 +1,7 @@
 fastapi
 uvicorn
-pandas
+pydantic
 scikit-learn
+numpy
+pandas
+dvc
