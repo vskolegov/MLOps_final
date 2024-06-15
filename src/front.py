@@ -1,22 +1,13 @@
-from fastapi import FastAPI, HTTPException, UploadFile, File
-from pydantic import BaseModel
 import pickle
-import numpy as np
+from fastapi import FastAPI, UploadFile, File
+from pydantic import BaseModel
 import pandas as pd
-import os
-from train_model import train_model
+from sklearn import tree
+from sklearn.preprocessing import LabelEncoder
 
 app = FastAPI()
 
-def load_model():
-    if os.path.exists('model.pkl'):
-        with open('model.pkl', 'rb') as f:
-            return pickle.load(f)
-    return None
-
-model = load_model()
-
-class PredictionRequest(BaseModel):
+class WineFeatures(BaseModel):
     alcohol: float
     malic_acid: float
     ash: float
@@ -31,32 +22,60 @@ class PredictionRequest(BaseModel):
     od280_od315_of_diluted_wines: float
     proline: float
 
-@app.get("/")
-def read_root():
-    return {"Hello": "World"}
+# Load the model
+def load_model():
+    try:
+        with open('model.pkl', 'rb') as f:
+            model = pickle.load(f)
+        with open('label_encoder.pkl', 'rb') as f:
+            label_encoder = pickle.load(f)
+        return model, label_encoder
+    except Exception as e:
+        print(f"Error loading model: {e}")
+        return None, None
+
+model, label_encoder = load_model()
 
 @app.post("/predict")
-def predict(request: PredictionRequest):
-    if model is None:
-        raise HTTPException(status_code=400, detail="Model is not trained yet.")
-    data = np.array([[
-        request.alcohol, request.malic_acid, request.ash, request.alcalinity_of_ash,
-        request.magnesium, request.total_phenols, request.flavanoids, request.nonflavanoid_phenols,
-        request.proanthocyanins, request.color_intensity, request.hue,
-        request.od280_od315_of_diluted_wines, request.proline
-    ]])
+def predict(features: WineFeatures):
+    if not model or not label_encoder:
+        return {"error": "Model not loaded"}
+    data = pd.DataFrame([features.dict().values()], columns=features.dict().keys())
     prediction = model.predict(data)
-    return {"prediction": int(prediction[0])}
+    prediction_label = label_encoder.inverse_transform(prediction)
+    return {"prediction": prediction_label[0]}
 
-@app.post("/retrain")
-def retrain(file: UploadFile = File(...)):
-    with open("new_data.csv", "wb") as f:
-        f.write(file.file.read())
+@app.post("/train")
+async def train_model(file: UploadFile = File(...)):
+    # Load dataset
+    df = pd.read_csv(file.file)
+    
+    # Split dataset
+    X = df.drop('target', axis=1)
+    y = df['target']
+    
+    # Train model
+    clf = tree.DecisionTreeClassifier()
+    clf.fit(X, y)
+    
+    # Train label encoder
+    label_encoder = LabelEncoder()
+    label_encoder.fit(y)
+    
+    # Save model
+    with open('model.pkl', 'wb') as f:
+        pickle.dump(clf, f)
+    
+    # Save label encoder
+    with open('label_encoder.pkl', 'wb') as f:
+        pickle.dump(label_encoder, f)
+    
+    return {"status": "Model trained and saved"}
 
-    new_data = pd.read_csv("new_data.csv")
-    train_model(new_data)
-
-    global model
-    model = load_model()
-
-    return {"detail": "Model retrained successfully"}
+@app.post("/upload_model")
+async def upload_model(file: UploadFile = File(...)):
+    # Save uploaded model file
+    with open('model.pkl', 'wb') as f:
+        content = await file.read()
+        f.write(content)
+    return {"status": "Model uploaded successfully"}
