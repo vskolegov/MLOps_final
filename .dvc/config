@@ -3,3 +3,5 @@
 ['remote "myremote"']
     url = s3://vskolegov-dvc/path/to/dvcstore
     endpointurl = https://storage.yandexcloud.net
+    access_key_id = 
+    secret_access_key = 

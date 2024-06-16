@@ -5,4 +5,4 @@ scikit-learn
 numpy
 pandas
 dvc
-dvc[s3]
+dvc[all]

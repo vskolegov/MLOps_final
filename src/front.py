@@ -1,62 +1,43 @@
-import uvicorn
-from fastapi import FastAPI, HTTPException
-from pydantic import BaseModel
-import pickle
-import pandas as pd
 import dvc.api
-import os
+import pandas as pd
+import numpy as np
+from sklearn import tree
+from sklearn.metrics import accuracy_score
+from sklearn.preprocessing import LabelEncoder
+import pickle
 
-app = FastAPI()
+# Get data URL from DVC
+data_url = dvc.api.get_url('data/wine_data_full.csv', repo='https://github.com/vskolegov/MLOps_final')
 
-def get_available_datasets():
-    datasets = dvc.api.ls(remote='myremote', path='data')
-    dataset_names = [os.path.basename(dataset) for dataset in datasets]
-    return dataset_names
+# Load data
+data = pd.read_csv(data_url)
 
-def load_model_and_encoder():
-    model_path = 'model.pkl'
-    encoder_path = 'label_encoder.pkl'
+# Split data
+X_train = data[:-20]
+X_test = data[-20:]
 
-    if os.path.exists(model_path) and os.path.exists(encoder_path):
-        with open(model_path, 'rb') as f:
-            model = pickle.load(f)
-        with open(encoder_path, 'rb') as f:
-            label_encoder = pickle.load(f)
-        return model, label_encoder
-    else:
-        raise HTTPException(status_code=404, detail="Model or label encoder not found")
+y_train = X_train.target
+y_test = X_test.target
 
-def train_model(dataset_name):
-    # Implementation of training as in train_model.py
-    ...
+X_train = X_train.drop('target', axis=1)
+X_test = X_test.drop('target', axis=1)
 
-class PredictionRequest(BaseModel):
-    data: dict
+# Train model
+clf = tree.DecisionTreeClassifier()
+clf = clf.fit(X_train, y_train)
 
-class TrainRequest(BaseModel):
-    dataset_name: str
+# Train label encoder
+label_encoder = LabelEncoder()
+label_encoder.fit(y_train)
 
-@app.get("/datasets")
-async def list_datasets():
-    return get_available_datasets()
+# Save model
+with open('model.pkl', 'wb') as f:
+    pickle.dump(clf, f)
 
-@app.post("/predict")
-async def predict(request: PredictionRequest):
-    input_data = pd.DataFrame([request.data])
+# Save label encoder
+with open('label_encoder.pkl', 'wb') as f:
+    pickle.dump(label_encoder, f)
 
-    model, label_encoder = load_model_and_encoder()
-
-    predictions = model.predict(input_data)
-    decoded_predictions = label_encoder.inverse_transform(predictions)
-    return {"predictions": decoded_predictions.tolist()}
-
-@app.post("/train")
-async def train(request: TrainRequest):
-    dataset_name = request.dataset_name
-    if dataset_name not in get_available_datasets():
-        raise HTTPException(status_code=404, detail="Dataset not found")
-    train_model(dataset_name)
-    return {"detail": f"Model trained on dataset {dataset_name}"}
-
-if __name__ == "__main__":
-    uvicorn.run(app, host="0.0.0.0", port=8000)
+# Predict and evaluate
+y_pred = clf.predict(X_test)
+print("accuracy_score: %.2f" % accuracy_score(y_test, y_pred))

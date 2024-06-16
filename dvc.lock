@@ -1,0 +1,13 @@
+schema: '2.0'
+stages:
+  pull_data:
+    cmd: dvc pull
+    deps:
+      - path: data/dataset_50.csv.dvc
+        md5: 47bcafaa295f4ed4cac05e755514f79e
+      - path: data/dataset_100.csv.dvc
+        md5: 6a6e826fa98cd1ba1e725ff7782dfee0
+      - path: data/dataset_150.csv.dvc
+        md5: c1c0fe44a37ca6a026899f2b96ee6194
+      - path: data/wine_data_full.csv.dvc
+        md5: d962807dba0f064eabc92d1f0e07cbef
