@@ -5,5 +5,4 @@ scikit-learn
 numpy
 pandas
 dvc
-pydrive2
 dvc[s3]
