@@ -1,8 +1,0 @@
-stages:
-  pull_data:
-    cmd: dvc pull
-    deps:
-    - data/dataset_50.csv.dvc
-    - data/dataset_100.csv.dvc
-    - data/dataset_150.csv.dvc
-    - data/wine_data_full.csv.dvc

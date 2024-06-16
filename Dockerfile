@@ -1,27 +1,23 @@
 FROM python:3.8-slim
 
-# Установим зависимости
-RUN apt-get update && \
-    apt-get install -y git
-
-# Установим рабочую директорию
 WORKDIR /app
 
-# Скопируем requirements.txt и установим зависимости Python
 COPY src/requirements.txt .
 
-RUN pip install --no-cache-dir -r requirements.txt
+RUN apt-get update && apt-get install -y git && \
+    pip install --no-cache-dir -r requirements.txt && \
+    pip install dvc[all]
 
-# Скопируем все файлы проекта
 COPY . .
 
-# Установим DVC
-RUN pip install dvc[all]
-
-# Скопируем конфигурацию DVC и подтянем данные
+# Set DVC credentials
 RUN mkdir /root/.dvc && \
     cp .dvc/config /root/.dvc/config && \
     dvc pull
+    
+# Train the model initially
+RUN python src/train_model.py
 
-# Запустим приложение
+EXPOSE 8000
+
 CMD ["uvicorn", "src.front:app", "--host", "0.0.0.0", "--port", "8000"]

@@ -1,43 +1,99 @@
-import dvc.api
-import pandas as pd
-import numpy as np
-from sklearn import tree
-from sklearn.metrics import accuracy_score
-from sklearn.preprocessing import LabelEncoder
+import os
 import pickle
+import pandas as pd
+from fastapi import FastAPI, HTTPException, Request, Body
+from fastapi.responses import JSONResponse
+from pydantic import BaseModel
+import subprocess
+import threading
 
-# Get data URL from DVC
-data_url = dvc.api.get_url('data/wine_data_full.csv', repo='https://github.com/vskolegov/MLOps_final')
+app = FastAPI()
 
-# Load data
-data = pd.read_csv(data_url)
+class PredictionRequest(BaseModel):
+    Alcohol: float = 14.2
+    Malic_acid: float = 1.71
+    Ash: float = 2.43
+    Alcalinity_of_ash: float = 15.6
+    Magnesium: float = 127
+    Total_phenols: float = 2.8
+    Flavanoids: float = 3.06
+    Nonflavanoid_phenols: float = 0.28
+    Proanthocyanins: float = 2.29
+    Color_intensity: float = 5.64
+    Hue: float = 1.04
+    OD280_OD315_of_diluted_wines: float = 3.92
+    Proline: float = 1065
 
-# Split data
-X_train = data[:-20]
-X_test = data[-20:]
+def load_model():
+    global model, label_encoder
+    model_path = 'model.pkl'
+    label_encoder_path = 'label_encoder.pkl'
+    
+    if os.path.exists(model_path) and os.path.exists(label_encoder_path):
+        with open(model_path, 'rb') as f:
+            model = pickle.load(f)
+        with open(label_encoder_path, 'rb') as f:
+            label_encoder = pickle.load(f)
+    else:
+        raise FileNotFoundError("Model or Label Encoder not found")
 
-y_train = X_train.target
-y_test = X_test.target
+@app.on_event("startup")
+async def startup_event():
+    load_model()
 
-X_train = X_train.drop('target', axis=1)
-X_test = X_test.drop('target', axis=1)
+@app.get("/")
+async def read_root():
+    return {"message": "Hello World"}
 
-# Train model
-clf = tree.DecisionTreeClassifier()
-clf = clf.fit(X_train, y_train)
+@app.post("/predict/")
+async def predict(request: PredictionRequest):
+    try:
+        data = pd.DataFrame([request.dict()])
+        data.columns = [
+            'Alcohol', 'Malic acid', 'Ash', 'Alcalinity of ash', 'Magnesium', 'Total phenols', 
+            'Flavanoids', 'Nonflavanoid phenols', 'Proanthocyanins', 'Color intensity', 'Hue', 
+            'OD280/OD315 of diluted wines', 'Proline'
+        ]
+        predictions = model.predict(data)
+        predictions = label_encoder.inverse_transform(predictions)
+        return JSONResponse(content={"predictions": predictions.tolist()})
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=str(e))
 
-# Train label encoder
-label_encoder = LabelEncoder()
-label_encoder.fit(y_train)
+@app.get("/labels/")
+async def get_labels():
+    try:
+        labels = label_encoder.classes_.tolist()
+        return JSONResponse(content={"labels": labels})
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=str(e))
 
-# Save model
-with open('model.pkl', 'wb') as f:
-    pickle.dump(clf, f)
+@app.post("/retrain/")
+async def retrain():
+    def retrain_model():
+        try:
+            # Pull the latest data
+            result = subprocess.run(['dvc', 'pull'], capture_output=True, text=True)
+            if result.returncode != 0:
+                print(f"Error pulling data: {result.stderr}")
+                return {"status": "failed", "detail": result.stderr}
+            
+            # Retrain the model
+            result = subprocess.run(['python', 'src/train_model.py'], capture_output=True, text=True)
+            if result.returncode != 0:
+                print(f"Error training model: {result.stderr}")
+                return {"status": "failed", "detail": result.stderr}
+            
+            # Reload the model after retraining
+            load_model()
+            return {"status": "success"}
+        except Exception as e:
+            print(f"Exception during retraining: {e}")
+            return {"status": "failed", "detail": str(e)}
+    
+    threading.Thread(target=retrain_model).start()
+    return JSONResponse(content={"status": "started", "detail": "Retraining has been started. Please check back later."})
 
-# Save label encoder
-with open('label_encoder.pkl', 'wb') as f:
-    pickle.dump(label_encoder, f)
-
-# Predict and evaluate
-y_pred = clf.predict(X_test)
-print("accuracy_score: %.2f" % accuracy_score(y_test, y_pred))
+if __name__ == "__main__":
+    import uvicorn
+    uvicorn.run(app, host="0.0.0.0", port=8000)
