@@ -31,7 +31,6 @@ jobs:
     - name: Install DVC
       run: |
         source src/.venv/bin/activate
-        pip install dvc[all]
 
     - name: Configure DVC Remote
       run: |
