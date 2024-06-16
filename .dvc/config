@@ -1,4 +1,5 @@
 [core]
     remote = myremote
 ['remote "myremote"']
-    url = https://drive.google.com/drive/u/1/folders/1F4idC9MZvpW43vZtrgubh-iC6vFitCkj
+    url = s3://vskolegov-dvc/path/to/dvcstore
+    endpointurl = https://storage.yandexcloud.net
