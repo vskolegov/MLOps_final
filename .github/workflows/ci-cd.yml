@@ -4,9 +4,11 @@ on:
   push:
     branches:
       - main
+      - develop
   pull_request:
     branches:
       - main
+      - develop
 
 jobs:
   build:
@@ -28,11 +30,11 @@ jobs:
         source .venv/bin/activate
         pip install -r requirements.txt
 
-    - name: Train model
+    - name: Configure DVC
       run: |
-        cd src
-        source .venv/bin/activate
-        .venv/bin/python train_model.py
+        source src/.venv/bin/activate
+        dvc remote modify myremote --local access_key_id ${{ secrets.YC_ACCESS_KEY_ID }}
+        dvc remote modify myremote --local secret_access_key ${{ secrets.YC_SECRET_ACCESS_KEY }}
 
     - name: Build Docker image
       run: |

@@ -1,42 +1,32 @@
 import numpy as np
 import pandas as pd
 from sklearn import tree
-from sklearn.datasets import load_wine
 from sklearn.metrics import accuracy_score
 from sklearn.preprocessing import LabelEncoder
 import pickle
 
-# Load data
-wine = load_wine()
-data = pd.DataFrame(data=np.c_[wine['data'], wine['target']],
-                    columns=wine['feature_names'] + ['target'])
+def train_and_save_model():
+    data = pd.read_csv('data/wine_data_full.csv')
 
-# Split data
-X_train = data[:-20]
-X_test = data[-20:]
+    data.rename(columns={'Class': 'target'}, inplace=True)
 
-y_train = X_train.target
-y_test = X_test.target
+    X = data.drop(columns=["target"])
+    y = data["target"]
 
-X_train = X_train.drop('target', axis=1)
-X_test = X_test.drop('target', axis=1)
+    clf = tree.DecisionTreeClassifier()
+    clf = clf.fit(X, y)
 
-# Train model
-clf = tree.DecisionTreeClassifier()
-clf = clf.fit(X_train, y_train)
+    label_encoder = LabelEncoder()
+    label_encoder.fit(y)
 
-# Train label encoder
-label_encoder = LabelEncoder()
-label_encoder.fit(y_train)
+    with open('model.pkl', 'wb') as f:
+        pickle.dump(clf, f)
 
-# Save model
-with open('model.pkl', 'wb') as f:
-    pickle.dump(clf, f)
+    # Save label encoder
+    with open('label_encoder.pkl', 'wb') as f:
+        pickle.dump(label_encoder, f)
 
-# Save label encoder
-with open('label_encoder.pkl', 'wb') as f:
-    pickle.dump(label_encoder, f)
+    print("Model and label encoder saved successfully")
 
-# Predict and evaluate
-y_pred = clf.predict(X_test)
-print("accuracy_score: %.2f" % accuracy_score(y_test, y_pred))
+if __name__ == "__main__":
+    train_and_save_model()

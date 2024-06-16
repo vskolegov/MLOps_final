@@ -1,0 +1,5 @@
+[core]
+    remote = myremote
+['remote "myremote"']
+    url = s3://vskolegov-dvc/path/to/dvcstore
+    endpointurl = https://storage.yandexcloud.net
