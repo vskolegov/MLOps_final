@@ -6,3 +6,5 @@ numpy
 pandas
 dvc
 dvc[all]
+pytest
+pytest-cov
