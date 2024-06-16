@@ -28,20 +28,11 @@ jobs:
         source .venv/bin/activate
         pip install -r requirements.txt
 
-    - name: Install DVC
+    - name: Configure DVC
       run: |
         source src/.venv/bin/activate
-        pip install dvc dvc[s3]
-
-    - name: Configure DVC remote
-      run: |
         dvc remote modify myremote --local access_key_id ${{ secrets.YC_ACCESS_KEY_ID }}
         dvc remote modify myremote --local secret_access_key ${{ secrets.YC_SECRET_ACCESS_KEY }}
-
-    - name: Pull DVC data
-      run: |
-        source src/.venv/bin/activate
-        dvc pull
 
     - name: Train model
       run: |
