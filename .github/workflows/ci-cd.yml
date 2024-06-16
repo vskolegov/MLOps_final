@@ -35,6 +35,13 @@ jobs:
         source src/.venv/bin/activate
         dvc remote modify myremote --local access_key_id ${{ secrets.YC_ACCESS_KEY_ID }}
         dvc remote modify myremote --local secret_access_key ${{ secrets.YC_SECRET_ACCESS_KEY }}
+        dvc pull
+
+    - name: Run unit tests and data quality tests
+      run: |
+        source src/.venv/bin/activate
+        pip install pytest
+        pytest tests/
 
     - name: Build Docker image
       run: |
